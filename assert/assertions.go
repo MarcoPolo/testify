@@ -1730,26 +1730,18 @@ func Eventually(t TestingT, condition func() bool, waitFor time.Duration, tick t
 		h.Helper()
 	}
 
-	ch := make(chan bool, 1)
-
-	timer := time.NewTimer(waitFor)
-	defer timer.Stop()
-
 	ticker := time.NewTicker(tick)
 	defer ticker.Stop()
+	retryCount := waitFor / tick
 
-	for tick := ticker.C; ; {
-		select {
-		case <-timer.C:
+	for {
+		<-ticker.C
+		if condition() {
+			return true
+		}
+		ticker.Reset(tick)
+		if retryCount--; retryCount == 0 {
 			return Fail(t, "Condition never satisfied", msgAndArgs...)
-		case <-tick:
-			tick = nil
-			go func() { ch <- condition() }()
-		case v := <-ch:
-			if v {
-				return true
-			}
-			tick = ticker.C
 		}
 	}
 }
